@@ -68,7 +68,7 @@ def callback():
     if not code:
         return "Authorization failed."
 
-    # 请求 access token
+    # Request access token
     result = client.request_access_token(code)
     token_data = {
         'access_token': result.access_token,
