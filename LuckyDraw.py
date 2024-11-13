@@ -1,39 +1,83 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect
 import sinaweibopy3
 import random
 import webbrowser
+import os
+import time
+import json
 
 app = Flask(__name__)
 
+# Weibo App credentials
+APP_KEY = '3782115072'
+APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
+# REDIRECT_URL = 'https://api.weibo.com/oauth2/default.html'
+REDIRECT_URL = 'http://127.0.0.1:5000/callback'
+
+TOKEN_FILE = "token.json"
+
+def save_token(token_data):
+    with open(TOKEN_FILE, 'w') as file:
+        json.dump(token_data, file)
+
+def load_token():
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'r') as file:
+            return json.load(file)
+    return None
+
+def is_token_expired(token_data):
+    return time.time() > token_data['expires']
+
+# Initialize the Weibo API client
+client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
+
 # Step 1: Authorization Logic
-def auth():
-    try:
-        # Weibo App credentials
-        APP_KEY = '3782115072'
-        APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
-        REDIRECT_URL = 'https://api.weibo.com/oauth2/default.html'
+# def auth():
+#     try:
+#         # Initialize Weibo API client and open the authorization URL
+#         client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
+#         url = client.get_authorize_url()
+#         webbrowser.open_new(url)
 
-        # Initialize Weibo API client and open the authorization URL
-        client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
-        url = client.get_authorize_url()
-        webbrowser.open_new(url)
+#         # Ask the user to input the authorization code from the URL
+#         code = input("Please input the code from the URL: ")
+#         result = client.request_access_token(code)
+#         client.set_access_token(result.access_token, result.expires_in)
+#         return client
 
-        # Ask the user to input the authorization code from the URL
-        code = input("Please input the code from the URL: ")
-        result = client.request_access_token(code)
-        client.set_access_token(result.access_token, result.expires_in)
-        return client
+#     except ValueError:
+#         print('pyOauth2Error')
 
-    except ValueError:
-        print('pyOauth2Error')
-
-# Initialize the Weibo client
-client = auth()
+# # Initialize the Weibo client
+# client = auth()
 
 # Step 2: Define the route to render the HTML page
 @app.route('/')
 def home():
-    return render_template('index.html')  # Renders the index.html file from the templates folder
+    # token_data = load_token()
+    # if token_data and not is_token_expired(token_data):
+    #     return render_template('index.html')
+
+    auth_url = client.get_authorize_url()
+    return redirect(auth_url)
+
+@app.route('/callback')
+def callback():
+    code = request.args.get('code')
+    if not code:
+        return "Authorization failed."
+
+    # 请求 access token
+    result = client.request_access_token(code)
+    token_data = {
+        'access_token': result.access_token,
+        'expires': int(time.time()) + result.expires_in
+    }
+    save_token(token_data)
+    client.set_access_token(result.access_token, result.expires_in)
+
+    return render_template('index.html')
 
 # Step 3: Define the route to handle repost timeline requests
 @app.route('/fetch_reposts', methods=['GET'])
