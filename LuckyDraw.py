@@ -4,110 +4,177 @@ import random
 import os
 import time
 import json
+import logging
 
 app = Flask(__name__)
+
+# 设置日志记录
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Weibo App credentials
 APP_KEY = '3782115072'
 APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
-# REDIRECT_URL = 'https://api.weibo.com/oauth2/default.html'
 REDIRECT_URL = 'https://weibo-lucky-draw-tool-82be7cb379f1.herokuapp.com/callback'
 
-TOKEN_FILE = "token.json"
-
 def save_token(token_data):
-    with open(TOKEN_FILE, 'w') as file:
-        json.dump(token_data, file)
+    """使用环境变量存储令牌信息"""
+    try:
+        # 将令牌数据转换为JSON字符串
+        token_str = json.dumps(token_data)
+        # 在本地设置环境变量
+        os.environ['WEIBO_TOKEN'] = token_str
+        logger.info("Token saved to environment variable")
+    except Exception as e:
+        logger.error(f"Error saving token to environment: {str(e)}")
 
 def load_token():
-    if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, 'r') as file:
-            return json.load(file)
-    return None
+    """从环境变量加载令牌信息"""
+    try:
+        token_str = os.environ.get('WEIBO_TOKEN')
+        if token_str:
+            token_data = json.loads(token_str)
+            logger.info("Token loaded from environment variable")
+            return token_data
+        logger.warning("No token found in environment variables")
+        return None
+    except Exception as e:
+        logger.error(f"Error loading token from environment: {str(e)}")
+        return None
 
 def is_token_expired(token_data):
-    return time.time() > token_data['expires']
+    """检查令牌是否过期"""
+    if not token_data:
+        return True
+    
+    expiration_time = float(token_data.get('expires', 0))
+    current_time = time.time()
+    is_expired = current_time > expiration_time
+    
+    logger.info(f"Token expiration check:")
+    logger.info(f"  - Current time: {current_time}")
+    logger.info(f"  - Expiration time: {expiration_time}")
+    logger.info(f"  - Is expired: {is_expired}")
+    
+    return is_expired
 
 # Initialize the Weibo API client
 client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
 
-# Step 1: Authorization Logic
-# def auth():
-#     try:
-#         # Initialize Weibo API client and open the authorization URL
-#         client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
-#         url = client.get_authorize_url()
-#         webbrowser.open_new(url)
-
-#         # Ask the user to input the authorization code from the URL
-#         code = input("Please input the code from the URL: ")
-#         result = client.request_access_token(code)
-#         client.set_access_token(result.access_token, result.expires_in)
-#         return client
-
-#     except ValueError:
-#         print('pyOauth2Error')
-
-# # Initialize the Weibo client
-# client = auth()
-
-# Step 2: Define the route to render the HTML page
 @app.route('/')
 def home():
-    # token_data = load_token()
-    # if token_data and not is_token_expired(token_data):
-    #     return render_template('index.html')
-
-    auth_url = client.get_authorize_url()
-    return redirect(auth_url)
+    try:
+        auth_url = client.get_authorize_url()
+        logger.info(f"Generated auth URL: {auth_url}")
+        return redirect(auth_url)
+    except Exception as e:
+        logger.error(f"Error in home route: {str(e)}", exc_info=True)
+        return f"Error generating authorization URL: {str(e)}", 500
 
 @app.route('/callback')
 def callback():
-    code = request.args.get('code')
-    if not code:
-        return "Authorization failed."
+    try:
+        logger.info(f"Callback received - Full URL: {request.url}")
+        code = request.args.get('code')
+        logger.info(f"Received authorization code: {code}")
+        
+        if not code:
+            logger.error("No authorization code received")
+            return "Authorization failed - no code received.", 400
 
-    # Request access token
-    result = client.request_access_token(code)
-    token_data = {
-        'access_token': result.access_token,
-        'expires': int(time.time()) + result.expires_in
-    }
-    save_token(token_data)
-    client.set_access_token(result.access_token, result.expires_in)
+        # 请求access token
+        try:
+            result = client.request_access_token(code)
+            logger.info("Access token request successful")
+            logger.info(f"Token result type: {type(result)}")
+            logger.info(f"Token expires_in type: {type(result.expires_in)}")
+            logger.info(f"Token expires_in value: {result.expires_in}")
+        except Exception as token_error:
+            logger.error(f"Error requesting access token: {str(token_error)}", exc_info=True)
+            return f"Error requesting access token: {str(token_error)}", 500
 
-    return render_template('index.html')
+        # 计算过期时间（将expires_in转换为整数）
+        expires_in = int(result.expires_in)
+        expiration_time = time.time() + expires_in
+        
+        # 保存令牌数据
+        token_data = {
+            'access_token': result.access_token,
+            'expires': expiration_time
+        }
+        logger.info(f"Token data prepared: {token_data}")
+        
+        # 设置客户端的access token
+        try:
+            client.set_access_token(result.access_token, expires_in)
+            logger.info("Access token set in client successfully")
+        except Exception as set_token_error:
+            logger.error(f"Error setting access token: {str(set_token_error)}")
+            return f"Error setting access token: {str(set_token_error)}", 500
 
-# Step 3: Define the route to handle repost timeline requests
+        # 保存令牌到环境变量
+        try:
+            save_token(token_data)
+        except Exception as save_error:
+            logger.error(f"Error saving token: {str(save_error)}")
+            # 继续执行，因为令牌已经设置在客户端中
+
+        return render_template('index.html')
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in callback: {str(e)}", exc_info=True)
+        return f"Authorization failed: {str(e)}", 500
+
 @app.route('/fetch_reposts', methods=['GET'])
 def fetch_reposts():
     try:
+        logger.info("Fetch reposts request received")
         weibo_url = request.args.get('weibo_url')
         count = int(request.args.get('count', 0))
+        
+        logger.info(f"Parameters received - URL: {weibo_url}, Count: {count}")
 
         if not weibo_url or count <= 0:
+            logger.error("Invalid parameters provided")
             return jsonify({"error": "Invalid URL or count."})
 
         # Extract Weibo ID from URL
         weibo_id = weibo_url.split('/')[-1]
+        logger.info(f"Extracted Weibo ID: {weibo_id}")
 
-        # Fetch repost timeline data
+        # 检查令牌状态
+        token_data = load_token()
+        if token_data and not is_token_expired(token_data):
+            logger.info("Valid token found, setting in client")
+            client.set_access_token(token_data['access_token'], 3600)
+        else:
+            logger.error("Token invalid or expired")
+            return jsonify({"error": "Token expired or not found. Please reauthorize."}), 401
+
+        # 获取转发数据
+        logger.info("Fetching repost timeline")
         reposts = client.repost_timeline(weibo_id)
+        logger.info(f"Received {len(reposts) if reposts else 0} reposts")
+        
         users = [repost['user']['screen_name'] for repost in reposts]
 
         if len(users) == 0:
+            logger.warning("No users found in reposts")
             return jsonify({"error": "No users found."})
 
-        # Select random users
+        # 随机选择用户
         selected_users = random.sample(users, min(count, len(users)))
+        logger.info(f"Selected {len(selected_users)} users randomly")
+        
         return jsonify({"users": selected_users})
 
     except Exception as e:
+        logger.error(f"Error in fetch_reposts: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)})
 
-# Run the Flask app
 if __name__ == '__main__':
-    # Get port from environment variable or default to 5000
     port = int(os.environ.get('PORT', 5000))
-    # Host needs to be set to '0.0.0.0' for Heroku
     app.run(host='0.0.0.0', port=port, debug=False)
