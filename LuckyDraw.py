@@ -64,6 +64,11 @@ def is_token_expired(token_data):
 # Initialize the Weibo API client
 client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
 
+@app.before_request
+def before_request():
+    if request.headers.get('X-Forwarded-Proto') == 'https':
+        request.url = request.url.replace('http://', 'https://')
+
 @app.route('/')
 def home():
     try:
@@ -122,7 +127,7 @@ def callback():
             logger.error(f"Error saving token: {str(save_error)}")
             # 继续执行，因为令牌已经设置在客户端中
 
-        return render_template('index.html', server_url = request.host_url)
+        return render_template('index.html', server_url = 'https://' + request.host)
     
     except Exception as e:
         logger.error(f"Unexpected error in callback: {str(e)}", exc_info=True)
