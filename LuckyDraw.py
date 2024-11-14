@@ -122,7 +122,7 @@ def callback():
             logger.error(f"Error saving token: {str(save_error)}")
             # 继续执行，因为令牌已经设置在客户端中
 
-        return render_template('index.html')
+        return render_template('index.html', server_url = request.host_url)
     
     except Exception as e:
         logger.error(f"Unexpected error in callback: {str(e)}", exc_info=True)

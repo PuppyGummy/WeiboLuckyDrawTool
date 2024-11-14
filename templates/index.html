@@ -27,7 +27,8 @@
             }
 
             try {
-                const response = await fetch(`http://127.0.0.1:5000//fetch_reposts?weibo_url=${encodeURIComponent(weiboUrl)}&count=${userCount}`, {
+                // replace the URL with a variable
+                const response = await fetch(`${server_url}fetch_reposts?weibo_url=${encodeURIComponent(weiboUrl)}&count=${userCount}`, {
                     method: 'GET'
                 });
 
