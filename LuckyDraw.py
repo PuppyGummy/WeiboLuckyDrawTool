@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, render_template, redirect
 import sinaweibopy3
 import random
-import webbrowser
 import os
 import time
 import json
