@@ -17,7 +17,79 @@
     <div id="result"></div>
 
     <script type="text/javascript">
-        const serverUrl = "{{ server_url }}";
+        const serverUrl = "http://47.113.226.71";
+
+        // 保存令牌到localStorage
+        function saveTokenToLocalStorage(tokenData) {
+            try {
+                const expiresIn = tokenData.expires_in; // 获取expires_in
+                const expirationTime = Math.floor(Date.now() / 1000) + expiresIn; // 计算过期时间（秒）
+                tokenData.expires = expirationTime; // 将过期时间添加到tokenData
+
+                const tokenString = JSON.stringify(tokenData);
+                localStorage.setItem('WEIBO_TOKEN', tokenString);
+                console.log('Token saved successfully');
+            } catch (error) {
+                console.error('Error saving token to localStorage:', error);
+            }
+        }
+
+        // 从localStorage加载令牌
+        function loadTokenFromLocalStorage() {
+            try {
+                const tokenString = localStorage.getItem('WEIBO_TOKEN');
+                if (tokenString) {
+                    const tokenData = JSON.parse(tokenString);
+                    console.log('Token loaded successfully');
+                    return tokenData;
+                }
+                console.warn('No token found in localStorage');
+                return null;
+            } catch (error) {
+                console.error('Error loading token from localStorage:', error);
+                return null;
+            }
+        }
+
+        // 检查令牌是否过期
+        function isTokenExpired(tokenData) {
+            if (!tokenData || !tokenData.expires) {
+                return true; // 令牌无效或未提供
+            }
+            const currentTime = Math.floor(Date.now() / 1000); // 当前时间（秒）
+            const expirationTime = tokenData.expires;
+            const isExpired = currentTime > expirationTime;
+            console.log(`Token expiration check: Current time = ${currentTime}, Expiration time = ${expirationTime}, Is expired = ${isExpired}`);
+            return isExpired;
+        }
+
+        // 检查并处理令牌
+        async function checkAndHandleToken() {
+            const tokenData = loadTokenFromLocalStorage();
+            if (!tokenData || isTokenExpired(tokenData)) {
+                // 如果令牌不存在或已过期，向后端请求授权URL
+                try {
+                    const response = await fetch(`${serverUrl}/get_auth_url`, {
+                        method: 'GET'
+                    });
+                    const data = await response.json();
+                    if (data.auth_url) {
+                        // 重定向用户到授权URL
+                        window.location.href = data.auth_url;
+                    } else {
+                        console.error('Error fetching auth URL:', data.error || 'Unknown error');
+                    }
+                } catch (error) {
+                    console.error('Error fetching auth URL:', error);
+                }
+            } else {
+                console.log('Token is valid and ready to use');
+            }
+        }
+
+        // 页面加载时检查令牌
+        window.onload = checkAndHandleToken;
+
         async function fetchReposts() {
             const weiboUrl = document.getElementById('weiboUrl').value;
             const userCount = document.getElementById('userCount').value;
