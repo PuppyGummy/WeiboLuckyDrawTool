@@ -1,2 +1,7 @@
 __pycache__/
 token.json
+LuckyDraw.py
+templates/
+Procfile
+requirements.txt
+sinaweibopy3.py
