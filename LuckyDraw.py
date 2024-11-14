@@ -11,7 +11,7 @@ app = Flask(__name__)
 APP_KEY = '3782115072'
 APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
 # REDIRECT_URL = 'https://api.weibo.com/oauth2/default.html'
-REDIRECT_URL = 'http://127.0.0.1:5000/callback'
+REDIRECT_URL = 'https://weibo-lucky-draw-tool-82be7cb379f1.herokuapp.com/callback'
 
 TOKEN_FILE = "token.json"
 
