@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Weibo App credentials
 APP_KEY = '3782115072'
 APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
-REDIRECT_URL = 'https://weibo-lucky-draw-tool-82be7cb379f1.herokuapp.com/callback'
+REDIRECT_URL = 'https://luckydrawtool.online/callback'
 
 def save_token(token_data):
     """使用环境变量存储令牌信息"""
@@ -122,10 +122,7 @@ def callback():
             logger.error(f"Error saving token: {str(save_error)}")
             # 继续执行，因为令牌已经设置在客户端中
 
-        server_url = request.host_url
-        if server_url.startswith('http://'):
-            server_url = server_url.replace('http://', 'https://')
-        return render_template('index.html', server_url=server_url)
+        return render_template('index.html', server_url = request.host_url)
     
     except Exception as e:
         logger.error(f"Unexpected error in callback: {str(e)}", exc_info=True)
