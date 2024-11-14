@@ -16,8 +16,7 @@
     <button onclick="fetchReposts()">Fetch and Select Users</button>
     <div id="result"></div>
 
-    <script type="text/javascript">
-        const serverUrl = "{{ server_url }}";
+    <script>
         async function fetchReposts() {
             const weiboUrl = document.getElementById('weiboUrl').value;
             const userCount = document.getElementById('userCount').value;
@@ -28,7 +27,8 @@
             }
 
             try {
-                const response = await fetch(`${serverUrl}fetch_reposts?weibo_url=${encodeURIComponent(weiboUrl)}&count=${userCount}`, {
+                // replace the URL with a variable
+                const response = await fetch(`${server_url}/fetch_reposts?weibo_url=${encodeURIComponent(weiboUrl)}&count=${userCount}`, {
                     method: 'GET'
                 });
 
