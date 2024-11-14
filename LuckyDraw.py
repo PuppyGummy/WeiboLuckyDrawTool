@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template, redirect
+from flask_cors import CORS
 import sinaweibopy3
 import random
 import os
@@ -7,6 +8,8 @@ import json
 import logging
 
 app = Flask(__name__)
+
+CORS(app, resources={r"/*": {"origins": "https://puppygummy.github.io"}})
 
 # 设置日志记录
 logging.basicConfig(
@@ -18,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Weibo App credentials
 APP_KEY = '3782115072'
 APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
-REDIRECT_URL = 'https://luckydrawtool.online/callback'
+REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool/callback'
 
 def save_token(token_data):
     """使用环境变量存储令牌信息"""
@@ -79,6 +82,15 @@ def home():
         logger.error(f"Error in home route: {str(e)}", exc_info=True)
         return f"Error generating authorization URL: {str(e)}", 500
 
+@app.route('/get_auth_url')
+def get_auth_url():
+    try:
+        auth_url = client.get_authorize_url()
+        return jsonify({"auth_url": auth_url})
+    except Exception as e:
+        logger.error(f"Error generating authorization URL: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Error generating authorization URL: {str(e)}"}), 500
+
 @app.route('/callback')
 def callback():
     try:
@@ -127,7 +139,7 @@ def callback():
             logger.error(f"Error saving token: {str(save_error)}")
             # 继续执行，因为令牌已经设置在客户端中
 
-        return render_template('index.html', server_url = 'https://' + request.host)
+        return redirect("https://puppygummy.github.io/WeiboLuckyDrawTool/")
     
     except Exception as e:
         logger.error(f"Unexpected error in callback: {str(e)}", exc_info=True)
