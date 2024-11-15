@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weibo Lucky Draw Tool</title>
 </head>
 
@@ -17,15 +19,11 @@
     <div id="result"></div>
 
     <script type="text/javascript">
-        const serverUrl = "http://47.113.226.71";
+        const serverUrl = "https://47.113.226.71"; // 修改为你的后端服务器地址
 
         // 保存令牌到localStorage
         function saveTokenToLocalStorage(tokenData) {
             try {
-                const expiresIn = tokenData.expires_in; // 获取expires_in
-                const expirationTime = Math.floor(Date.now() / 1000) + expiresIn; // 计算过期时间（秒）
-                tokenData.expires = expirationTime; // 将过期时间添加到tokenData
-
                 const tokenString = JSON.stringify(tokenData);
                 localStorage.setItem('WEIBO_TOKEN', tokenString);
                 console.log('Token saved successfully');
@@ -83,19 +81,58 @@
                     console.error('Error fetching auth URL:', error);
                 }
             } else {
-                console.log('Token is valid and ready to use');
+                console.log('Token is valid');
             }
         }
 
-        // 页面加载时检查令牌
-        window.onload = checkAndHandleToken;
+        // 在页面加载时检查并处理令牌
+        document.addEventListener('DOMContentLoaded', (event) => {
+            checkAndHandleToken();
+        });
 
+        // 在页面加载时处理授权回调
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            if (code) {
+                // 发送授权码到后端进行处理
+                fetch(`${serverUrl}/process_auth_code`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ code: code })
+                })
+                    .then(response => response.json())
+                    .then(tokenData => {
+                        if (tokenData.access_token) {
+                            saveTokenToLocalStorage(tokenData);
+                            console.log('Token received and saved');
+                            // 移除 URL 中的授权码
+                            window.history.replaceState({}, document.title, "/WeiboLuckyDrawTool/");
+                        } else {
+                            console.error('Failed to receive token:', tokenData.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error processing auth code:', error);
+                    });
+            }
+        });
+
+        // 示例函数：获取转发列表
         async function fetchReposts() {
             const weiboUrl = document.getElementById('weiboUrl').value;
             const userCount = document.getElementById('userCount').value;
 
             if (!weiboUrl || !userCount) {
                 alert("Please provide both Weibo URL and number of users to select.");
+                return;
+            }
+
+            const tokenData = loadTokenFromLocalStorage();
+            if (!tokenData || isTokenExpired(tokenData)) {
+                alert("Token is missing or expired. Please reauthorize.");
                 return;
             }
 

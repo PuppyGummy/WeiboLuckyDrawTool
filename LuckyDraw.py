@@ -9,8 +9,6 @@ import logging
 
 app = Flask(__name__)
 
-CORS(app, resources={r"/*": {"origins": "https://puppygummy.github.io"}})
-
 # 设置日志记录
 logging.basicConfig(
     level=logging.DEBUG,
@@ -38,7 +36,7 @@ def load_token():
     """从环境变量加载令牌信息"""
     try:
         token_str = os.environ.get('WEIBO_TOKEN')
-        if token_str:
+        if (token_str):
             token_data = json.loads(token_str)
             logger.info("Token loaded from environment variable")
             return token_data
@@ -191,6 +189,41 @@ def fetch_reposts():
     except Exception as e:
         logger.error(f"Error in fetch_reposts: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)})
+
+@app.route('/process_auth_code', methods=['POST'])
+def process_auth_code():
+    try:
+        data = request.json
+        code = data.get('code')
+        logger.info(f"Received authorization code: {code}")
+
+        if not code:
+            return jsonify({"error": "No authorization code received"}), 400
+
+        # 请求access token
+        try:
+            result = client.request_access_token(code)
+            client.set_access_token(result.access_token, result.expires_in)
+        except Exception as token_error:
+            logger.error(f"Error requesting access token: {str(token_error)}", exc_info=True)
+            return jsonify({"error": "Failed to request access token"}), 500
+
+        # 计算过期时间（将expires_in转换为整数）
+        expires_in = int(result.expires_in)
+        expiration_time = time.time() + expires_in
+
+        # 保存令牌数据
+        token_data = {
+            "access_token": result.access_token,
+            "expires": expiration_time
+        }
+        save_token(token_data)
+
+        return jsonify(token_data)
+
+    except Exception as e:
+        logger.error(f"Error in process_auth_code: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
