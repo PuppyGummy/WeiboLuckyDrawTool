@@ -9,6 +9,8 @@ import logging
 
 app = Flask(__name__)
 
+CORS(app, resources={r"/*": {"origins": "https://puppygummy.github.io"}})
+
 # 设置日志记录
 logging.basicConfig(
     level=logging.DEBUG,
