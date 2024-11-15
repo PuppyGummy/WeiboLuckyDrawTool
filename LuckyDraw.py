@@ -1,5 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect
-from flask_cors import CORS
+from flask import Flask, request, jsonify, redirect
 import sinaweibopy3
 import random
 import os
@@ -8,8 +7,6 @@ import json
 import logging
 
 app = Flask(__name__)
-
-CORS(app, resources={r"/*": {"origins": "https://puppygummy.github.io"}})
 
 # 设置日志记录
 logging.basicConfig(
@@ -26,9 +23,7 @@ REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool/callback'
 def save_token(token_data):
     """使用环境变量存储令牌信息"""
     try:
-        # 将令牌数据转换为JSON字符串
         token_str = json.dumps(token_data)
-        # 在本地设置环境变量
         os.environ['WEIBO_TOKEN'] = token_str
         logger.info("Token saved to environment variable")
     except Exception as e:
@@ -38,7 +33,7 @@ def load_token():
     """从环境变量加载令牌信息"""
     try:
         token_str = os.environ.get('WEIBO_TOKEN')
-        if (token_str):
+        if token_str:
             token_data = json.loads(token_str)
             logger.info("Token loaded from environment variable")
             return token_data
@@ -67,11 +62,6 @@ def is_token_expired(token_data):
 # Initialize the Weibo API client
 client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
 
-@app.before_request
-def before_request():
-    if request.headers.get('X-Forwarded-Proto') == 'https':
-        request.url = request.url.replace('http://', 'https://')
-
 @app.route('/')
 def home():
     try:
@@ -80,16 +70,7 @@ def home():
         return redirect(auth_url)
     except Exception as e:
         logger.error(f"Error in home route: {str(e)}", exc_info=True)
-        return f"Error generating authorization URL: {str(e)}", 500
-
-@app.route('/get_auth_url')
-def get_auth_url():
-    try:
-        auth_url = client.get_authorize_url()
-        return jsonify({"auth_url": auth_url})
-    except Exception as e:
-        logger.error(f"Error generating authorization URL: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Error generating authorization URL: {str(e)}"}), 500
+        return
 
 @app.route('/callback')
 def callback():
@@ -99,19 +80,15 @@ def callback():
         logger.info(f"Received authorization code: {code}")
         
         if not code:
-            logger.error("No authorization code received")
-            return "Authorization failed - no code received.", 400
+            return jsonify({"error": "No authorization code received"}), 400
 
         # 请求access token
         try:
             result = client.request_access_token(code)
-            logger.info("Access token request successful")
-            logger.info(f"Token result type: {type(result)}")
-            logger.info(f"Token expires_in type: {type(result.expires_in)}")
-            logger.info(f"Token expires_in value: {result.expires_in}")
+            client.set_access_token(result.access_token, result.expires_in)
         except Exception as token_error:
             logger.error(f"Error requesting access token: {str(token_error)}", exc_info=True)
-            return f"Error requesting access token: {str(token_error)}", 500
+            return jsonify({"error": "Failed to request access token"}), 500
 
         # 计算过期时间（将expires_in转换为整数）
         expires_in = int(result.expires_in)
@@ -119,78 +96,27 @@ def callback():
         
         # 保存令牌数据
         token_data = {
-            'access_token': result.access_token,
-            'expires': expiration_time
+            "access_token": result.access_token,
+            "expires": expiration_time
         }
-        logger.info(f"Token data prepared: {token_data}")
+        save_token(token_data)
         
-        # 设置客户端的access token
-        try:
-            client.set_access_token(result.access_token, expires_in)
-            logger.info("Access token set in client successfully")
-        except Exception as set_token_error:
-            logger.error(f"Error setting access token: {str(set_token_error)}")
-            return f"Error setting access token: {str(set_token_error)}", 500
-
-        # 保存令牌到环境变量
-        try:
-            save_token(token_data)
-        except Exception as save_error:
-            logger.error(f"Error saving token: {str(save_error)}")
-            # 继续执行，因为令牌已经设置在客户端中
-
-        return redirect("https://puppygummy.github.io/WeiboLuckyDrawTool/")
+        # 将令牌信息作为查询参数传递给前端的主页 URL
+        redirect_url = f"https://puppygummy.github.io/WeiboLuckyDrawTool/?access_token={result.access_token}&expires={expiration_time}"
+        return redirect(redirect_url)
     
     except Exception as e:
-        logger.error(f"Unexpected error in callback: {str(e)}", exc_info=True)
-        return f"Authorization failed: {str(e)}", 500
+        logger.error(f"Error in callback: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/fetch_reposts', methods=['GET'])
-def fetch_reposts():
+@app.route('/get_auth_url', methods=['GET'])
+def get_auth_url():
     try:
-        logger.info("Fetch reposts request received")
-        weibo_url = request.args.get('weibo_url')
-        count = int(request.args.get('count', 0))
-        
-        logger.info(f"Parameters received - URL: {weibo_url}, Count: {count}")
-
-        if not weibo_url or count <= 0:
-            logger.error("Invalid parameters provided")
-            return jsonify({"error": "Invalid URL or count."})
-
-        # Extract Weibo ID from URL
-        weibo_id = weibo_url.split('/')[-1]
-        logger.info(f"Extracted Weibo ID: {weibo_id}")
-
-        # 检查令牌状态
-        token_data = load_token()
-        if token_data and not is_token_expired(token_data):
-            logger.info("Valid token found, setting in client")
-            client.set_access_token(token_data['access_token'], 3600)
-        else:
-            logger.error("Token invalid or expired")
-            return jsonify({"error": "Token expired or not found. Please reauthorize."}), 401
-
-        # 获取转发数据
-        logger.info("Fetching repost timeline")
-        reposts = client.repost_timeline(weibo_id)
-        logger.info(f"Received {len(reposts) if reposts else 0} reposts")
-        
-        users = [repost['user']['screen_name'] for repost in reposts]
-
-        if len(users) == 0:
-            logger.warning("No users found in reposts")
-            return jsonify({"error": "No users found."})
-
-        # 随机选择用户
-        selected_users = random.sample(users, min(count, len(users)))
-        logger.info(f"Selected {len(selected_users)} users randomly")
-        
-        return jsonify({"users": selected_users})
-
+        auth_url = client.get_authorize_url()
+        return jsonify({"auth_url": auth_url})
     except Exception as e:
-        logger.error(f"Error in fetch_reposts: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)})
+        logger.error(f"Error generating auth URL: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/process_auth_code', methods=['POST'])
 def process_auth_code():
@@ -225,6 +151,44 @@ def process_auth_code():
 
     except Exception as e:
         logger.error(f"Error in process_auth_code: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/fetch_reposts', methods=['GET'])
+def fetch_reposts():
+    try:
+        logger.info("Fetch reposts request received")
+        weibo_url = request.args.get('weibo_url')
+        count = int(request.args.get('count', 0))
+        
+        logger.info(f"Parameters received - URL: {weibo_url}, Count: {count}")
+
+        if not weibo_url or count <= 0:
+            logger.error("Invalid parameters provided")
+            return jsonify({"error": "Invalid URL or count."})
+
+        # Extract Weibo ID from URL
+        weibo_id = weibo_url.split('/')[-1]
+        logger.info(f"Extracted Weibo ID: {weibo_id}")
+
+        # 检查令牌状态
+        token_data = load_token()
+        if not token_data or is_token_expired(token_data):
+            return jsonify({"error": "Access token is missing or expired"}), 401
+        
+        client.set_access_token(token_data['access_token'], token_data['expires'])
+        
+        # 调用微博API获取转发列表
+        reposts = client.get.repost_timeline(id=weibo_id, count=count)
+        users = [repost.user.screen_name for repost in reposts]
+        
+        # 随机选择用户
+        selected_users = random.sample(users, min(count, len(users)))
+        logger.info(f"Selected {len(selected_users)} users randomly")
+        
+        return jsonify({"users": selected_users})
+
+    except Exception as e:
+        logger.error(f"Error in fetch_reposts: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
