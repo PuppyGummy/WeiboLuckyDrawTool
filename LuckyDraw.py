@@ -8,7 +8,13 @@ import json
 import logging
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://puppygummy.github.io"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # 设置日志记录
 logging.basicConfig(
@@ -20,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Weibo App credentials
 APP_KEY = '3782115072'
 APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
-REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool'  # 修改为前端根路径
+REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool'
 
 def save_token(token_data):
     """使用环境变量存储令牌信息"""
@@ -61,8 +67,10 @@ def is_token_expired(token_data):
 # Initialize the Weibo API client
 client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
 
-@app.route('/get_auth_url', methods=['GET'])
+@app.route('/get_auth_url', methods=['GET', 'OPTIONS'])
 def get_auth_url():
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         auth_url = client.get_authorize_url()
         return jsonify({"auth_url": auth_url})
@@ -70,10 +78,15 @@ def get_auth_url():
         logger.error(f"Error generating auth URL: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/process_auth_code', methods=['POST'])
+@app.route('/process_auth_code', methods=['POST', 'OPTIONS'])
 def process_auth_code():
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
-        data = request.json
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data received"}), 400
+            
         code = data.get('code')
         logger.info(f"Received authorization code: {code}")
 
@@ -102,8 +115,10 @@ def process_auth_code():
         logger.error(f"Error in process_auth_code: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/fetch_reposts', methods=['GET'])
+@app.route('/fetch_reposts', methods=['GET', 'OPTIONS'])
 def fetch_reposts():
+    if request.method == 'OPTIONS':
+        return '', 204
     try:
         logger.info("Fetch reposts request received")
         weibo_url = request.args.get('weibo_url')
@@ -142,4 +157,4 @@ def fetch_reposts():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, ssl_context='adhoc')
