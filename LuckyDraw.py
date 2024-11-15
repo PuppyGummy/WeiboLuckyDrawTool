@@ -116,11 +116,12 @@ def process_auth_code():
 
         token_data = {
             "access_token": result.access_token,
-            "expires": expiration_time  # 确保这是一个数值
+            "expires": expiration_time
         }
         save_token(token_data)
 
         client.set_access_token(result.access_token, expires_in)
+        logger.info(f"Access token set: {result.access_token}, expires in {expires_in} seconds")
         
         logger.info(f"Token data prepared: {token_data}")
         return jsonify(token_data)
