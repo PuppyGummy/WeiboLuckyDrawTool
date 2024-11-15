@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- 为 GitHub Pages 添加必要的 CSP -->
+    <!-- 使用严格的 CSP -->
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://47.113.226.71; style-src 'self' 'unsafe-inline';">
+        content="default-src 'self'; connect-src 'self' https://47.113.226.71; script-src 'self' 'sha256-xxx';">
     <title>Weibo Lucky Draw Tool</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
@@ -23,7 +23,6 @@
         .input-group label {
             display: block;
             margin-bottom: 5px;
-            font-weight: bold;
         }
 
         .input-group input {
@@ -42,20 +41,11 @@
             cursor: pointer;
         }
 
-        button:hover {
-            background-color: #1991da;
-        }
-
         #result {
             margin-top: 20px;
             padding: 15px;
             border: 1px solid #ddd;
             border-radius: 4px;
-        }
-
-        .error {
-            color: red;
-            margin-top: 10px;
         }
     </style>
 </head>
@@ -73,12 +63,14 @@
         <input type="number" id="userCount" placeholder="请输入需要抽取的人数" min="1">
     </div>
 
-    <button id="fetchButton">抽取中奖用户</button>
+    <button id="fetchButton" type="button">抽取中奖用户</button>
 
     <div id="result"></div>
 
-    <!-- 使用 defer 确保 DOM 加载完成后执行脚本 -->
-    <script src="static/js/script.js" defer></script>
+    <!-- 预加载主脚本 -->
+    <link rel="preload" href="script.js" as="script">
+    <!-- 使用模块方式加载脚本 -->
+    <script type="module" src="script.js"></script>
 </body>
 
 </html>
