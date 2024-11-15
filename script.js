@@ -166,11 +166,11 @@ class App {
             state.setLoading(true);
             state.setError(null);
 
-            const tokenData = tokenManager.load();
-            if (!tokenData || tokenManager.isExpired(tokenData)) {
-                await this.init(); // 重新初始化以获取新token
-                return;
-            }
+            // const tokenData = tokenManager.load();
+            // if (!tokenData || tokenManager.isExpired(tokenData)) {
+            //     await this.init(); // 重新初始化以获取新token
+            //     return;
+            // }
 
             const data = await api.fetchReposts(weiboUrl, userCount);
             if (data.error) {
