@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify
 import sinaweibopy3
 import random
 import os
@@ -16,9 +16,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Weibo App credentials
-APP_KEY = '3782115072'
-APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
-REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool/callback'
+APP_KEY = '你的APP_KEY'
+APP_SECRET = '你的APP_SECRET'
+REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool'  # 修改为前端根路径
 
 def save_token(token_data):
     """使用环境变量存储令牌信息"""
@@ -52,62 +52,12 @@ def is_token_expired(token_data):
     current_time = time.time()
     is_expired = current_time > expiration_time
     
-    logger.info(f"Token expiration check:")
-    logger.info(f"  - Current time: {current_time}")
-    logger.info(f"  - Expiration time: {expiration_time}")
-    logger.info(f"  - Is expired: {is_expired}")
+    logger.info(f"Token expiration check: current={current_time}, expires={expiration_time}, expired={is_expired}")
     
     return is_expired
 
 # Initialize the Weibo API client
 client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
-
-@app.route('/')
-def home():
-    try:
-        auth_url = client.get_authorize_url()
-        logger.info(f"Generated auth URL: {auth_url}")
-        return redirect(auth_url)
-    except Exception as e:
-        logger.error(f"Error in home route: {str(e)}", exc_info=True)
-        return
-
-@app.route('/callback')
-def callback():
-    try:
-        logger.info(f"Callback received - Full URL: {request.url}")
-        code = request.args.get('code')
-        logger.info(f"Received authorization code: {code}")
-        
-        if not code:
-            return jsonify({"error": "No authorization code received"}), 400
-
-        # 请求access token
-        try:
-            result = client.request_access_token(code)
-            client.set_access_token(result.access_token, result.expires_in)
-        except Exception as token_error:
-            logger.error(f"Error requesting access token: {str(token_error)}", exc_info=True)
-            return jsonify({"error": "Failed to request access token"}), 500
-
-        # 计算过期时间（将expires_in转换为整数）
-        expires_in = int(result.expires_in)
-        expiration_time = time.time() + expires_in
-        
-        # 保存令牌数据
-        token_data = {
-            "access_token": result.access_token,
-            "expires": expiration_time
-        }
-        save_token(token_data)
-        
-        # 将令牌信息作为查询参数传递给前端的主页 URL
-        redirect_url = f"https://puppygummy.github.io/WeiboLuckyDrawTool/?access_token={result.access_token}&expires={expiration_time}"
-        return redirect(redirect_url)
-    
-    except Exception as e:
-        logger.error(f"Error in callback: {str(e)}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/get_auth_url', methods=['GET'])
 def get_auth_url():
@@ -128,7 +78,6 @@ def process_auth_code():
         if not code:
             return jsonify({"error": "No authorization code received"}), 400
 
-        # 请求access token
         try:
             result = client.request_access_token(code)
             client.set_access_token(result.access_token, result.expires_in)
@@ -136,11 +85,9 @@ def process_auth_code():
             logger.error(f"Error requesting access token: {str(token_error)}", exc_info=True)
             return jsonify({"error": "Failed to request access token"}), 500
 
-        # 计算过期时间（将expires_in转换为整数）
         expires_in = int(result.expires_in)
         expiration_time = time.time() + expires_in
 
-        # 保存令牌数据
         token_data = {
             "access_token": result.access_token,
             "expires": expiration_time
