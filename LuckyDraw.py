@@ -8,13 +8,13 @@ import json
 import logging
 
 app = Flask(__name__)
-CORS(app, resources={
-    r"/*": {
-        "origins": ["https://puppygummy.github.io"],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
-    }
-})
+# CORS(app, resources={
+#     r"/*": {
+#         "origins": ["https://puppygummy.github.io"],
+#         "methods": ["GET", "POST", "OPTIONS"],
+#         "allow_headers": ["Content-Type"]
+#     }
+# })
 
 # 设置日志记录
 logging.basicConfig(
@@ -31,9 +31,13 @@ REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool'
 def save_token(token_data):
     """使用环境变量存储令牌信息"""
     try:
-        token_str = json.dumps(token_data)
-        os.environ['WEIBO_TOKEN'] = token_str
-        logger.info("Token saved to environment variable")
+        # 确保token_data中的expires是数值类型
+        if isinstance(token_data.get('expires'), (int, float)):
+            token_str = json.dumps(token_data)
+            os.environ['WEIBO_TOKEN'] = token_str
+            logger.info(f"Token saved to environment variable: {token_data}")
+        else:
+            logger.error("Invalid token data format: 'expires' must be a number")
     except Exception as e:
         logger.error(f"Error saving token to environment: {str(e)}")
 
@@ -43,7 +47,10 @@ def load_token():
         token_str = os.environ.get('WEIBO_TOKEN')
         if token_str:
             token_data = json.loads(token_str)
-            logger.info("Token loaded from environment variable")
+            # 确保expires是数值类型
+            if isinstance(token_data.get('expires'), str):
+                token_data['expires'] = float(token_data['expires'])
+            logger.info(f"Token loaded from environment variable: {token_data}")
             return token_data
         logger.warning("No token found in environment variables")
         return None
@@ -56,13 +63,17 @@ def is_token_expired(token_data):
     if not token_data:
         return True
     
-    expiration_time = float(token_data.get('expires', 0))
-    current_time = time.time()
-    is_expired = current_time > expiration_time
-    
-    logger.info(f"Token expiration check: current={current_time}, expires={expiration_time}, expired={is_expired}")
-    
-    return is_expired
+    try:
+        expiration_time = float(token_data.get('expires', 0))
+        current_time = time.time()
+        is_expired = current_time > expiration_time
+        
+        logger.info(f"Token expiration check: current={current_time}, expires={expiration_time}, expired={is_expired}")
+        
+        return is_expired
+    except (ValueError, TypeError) as e:
+        logger.error(f"Error checking token expiration: {str(e)}")
+        return True
 
 # Initialize the Weibo API client
 client = sinaweibopy3.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=REDIRECT_URL)
@@ -105,10 +116,11 @@ def process_auth_code():
 
         token_data = {
             "access_token": result.access_token,
-            "expires": expiration_time
+            "expires": expiration_time  # 确保这是一个数值
         }
         save_token(token_data)
-
+        
+        logger.info(f"Token data prepared: {token_data}")
         return jsonify(token_data)
 
     except Exception as e:
