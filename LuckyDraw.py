@@ -16,8 +16,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Weibo App credentials
-APP_KEY = '你的APP_KEY'
-APP_SECRET = '你的APP_SECRET'
+APP_KEY = '3782115072'
+APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
 REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool'  # 修改为前端根路径
 
 def save_token(token_data):
