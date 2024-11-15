@@ -1,27 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weibo Lucky Draw Tool</title>
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'sha256-5+YTmTcBwCYdJ8Jetbr6kyjGp0Ry/H7ptpoun6CrSwQ='; connect-src 'self' https://47.113.226.71;">
 </head>
 
 <body>
     <h1>Weibo Lucky Draw Tool</h1>
-    <label for="weiboUrl">Weibo URL:</label>
-    <input type="text" id="weiboUrl" placeholder="Input URL...">
-    <br><br>
-    <label for="userCount">Number of Users to Select:</label>
-    <input type="number" id="userCount" min="1">
-    <br><br>
-    <button onclick="fetchReposts()">Fetch and Select Users</button>
+
+    <div>
+        <label for="weiboUrl">Weibo URL:</label>
+        <input type="text" id="weiboUrl">
+    </div>
+
+    <div>
+        <label for="userCount">Number of Users to Select:</label>
+        <input type="number" id="userCount">
+    </div>
+
+    <button id="fetchButton">Fetch and Select Users</button>
+
     <div id="result"></div>
 
-    <!-- 引用外部 JavaScript 文件 -->
-    <script src="static/js/script.js"></script>
+    <script src="script.js"></script>
 </body>
 
 </html>
