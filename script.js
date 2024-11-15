@@ -143,14 +143,14 @@ class App {
 
         // 检查现有token
         const token = tokenManager.load();
-        if (!token || tokenManager.isExpired(token)) {
-            try {
-                const authUrl = await api.getAuthUrl();
-                window.location.href = authUrl;
-            } catch (error) {
-                state.setError('获取授权失败');
-            }
+        // if (!token || tokenManager.isExpired(token)) {
+        try {
+            const authUrl = await api.getAuthUrl();
+            window.location.href = authUrl;
+        } catch (error) {
+            state.setError('获取授权失败');
         }
+        // }
     }
 
     async handleFetchClick() {
