@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import sinaweibopy3
 import random
 import os
@@ -7,6 +8,7 @@ import json
 import logging
 
 app = Flask(__name__)
+CORS(app)
 
 # 设置日志记录
 logging.basicConfig(
