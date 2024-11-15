@@ -119,6 +119,8 @@ def process_auth_code():
             "expires": expiration_time  # 确保这是一个数值
         }
         save_token(token_data)
+
+        client.set_access_token(result.access_token, expires_in)
         
         logger.info(f"Token data prepared: {token_data}")
         return jsonify(token_data)
@@ -147,11 +149,11 @@ def fetch_reposts():
         logger.info(f"Extracted Weibo ID: {weibo_id}")
 
         # 检查令牌状态
-        token_data = load_token()
-        if not token_data or is_token_expired(token_data):
-            return jsonify({"error": "Access token is missing or expired"}), 401
+        # token_data = load_token()
+        # if not token_data or is_token_expired(token_data):
+        #     return jsonify({"error": "Access token is missing or expired"}), 401
         
-        client.set_access_token(token_data['access_token'], token_data['expires'])
+        # client.set_access_token(token_data['access_token'], token_data['expires'])
         
         # 调用微博API获取转发列表
         reposts = client.get.repost_timeline(id=weibo_id, count=count)
