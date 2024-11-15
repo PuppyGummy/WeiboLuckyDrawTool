@@ -32,7 +32,7 @@ const state = {
         }
 
         if (this.error) {
-            resultDiv.innerHTML = `<div style="color: red;">错误: ${this.error}</div>`;
+            resultDiv.innerHTML = `<div class="error">错误: ${this.error}</div>`;
             return;
         }
 
@@ -118,26 +118,7 @@ class App {
             fetchButton.addEventListener('click', () => this.handleFetchClick());
         }
 
-        // 处理授权回调
-        await this.handleAuthCallback();
-
-        // 检查token
-        await this.checkAuth();
-    }
-
-    async checkAuth() {
-        const token = tokenManager.load();
-        if (!token || tokenManager.isExpired(token)) {
-            try {
-                const authUrl = await api.getAuthUrl();
-                window.location.href = authUrl;
-            } catch (error) {
-                state.setError('获取授权失败');
-            }
-        }
-    }
-
-    async handleAuthCallback() {
+        // 检查URL中是否有授权码
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
 
@@ -157,6 +138,18 @@ class App {
             } finally {
                 state.setLoading(false);
             }
+            return;
+        }
+
+        // 检查现有token
+        const token = tokenManager.load();
+        if (!token || tokenManager.isExpired(token)) {
+            try {
+                const authUrl = await api.getAuthUrl();
+                window.location.href = authUrl;
+            } catch (error) {
+                state.setError('获取授权失败');
+            }
         }
     }
 
@@ -175,7 +168,7 @@ class App {
 
             const tokenData = tokenManager.load();
             if (!tokenData || tokenManager.isExpired(tokenData)) {
-                await this.checkAuth();
+                await this.init(); // 重新初始化以获取新token
                 return;
             }
 
@@ -193,9 +186,6 @@ class App {
     }
 }
 
-// 使用模块方式初始化应用
+// 初始化应用
 const app = new App();
 document.addEventListener('DOMContentLoaded', () => app.init());
-
-// 导出需要的内容（如果其他模块需要）
-export { app, state, api, tokenManager };
