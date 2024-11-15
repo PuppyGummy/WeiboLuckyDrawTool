@@ -156,8 +156,8 @@ def fetch_reposts():
         # client.set_access_token(token_data['access_token'], token_data['expires'])
         
         # 调用微博API获取转发列表
-        reposts = client.get.repost_timeline(id=weibo_id, count=count)
-        users = [repost.user.screen_name for repost in reposts]
+        reposts = client.repost_timeline(weibo_id)
+        users = [repost['user']['screen_name'] for repost in reposts]
         
         # 随机选择用户
         selected_users = random.sample(users, min(count, len(users)))
