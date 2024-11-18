@@ -28,7 +28,7 @@
             }
 
             try {
-                const response = await fetch(`${serverUrl}fetch_reposts?weibo_url=${encodeURIComponent(weiboUrl)}&count=${userCount}`, {
+                const response = await fetch(`${serverUrl}/fetch_reposts?weibo_url=${encodeURIComponent(weiboUrl)}&count=${userCount}`, {
                     method: 'GET'
                 });
 
