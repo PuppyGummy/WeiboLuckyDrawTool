@@ -1,29 +1,106 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 
 <head>
-    <title>Weibo Lucky Draw Tool</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://luckydrawtool.online; style-src 'self' 'unsafe-inline';">
+    <title>微博抽奖工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 15px;
+            line-height: 1.6;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #1da1f2;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0f88eb;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .input-group input,
+            button {
+                font-size: 16px;
+            }
+        }
+    </style>
 </head>
 
 <body>
-    <h1>Weibo Lucky Draw Tool</h1>
-    <label for="weiboUrl">Weibo URL:</label>
-    <input type="text" id="weiboUrl" placeholder="Input URL...">
-    <br><br>
-    <label for="userCount">Number of Users to Select:</label>
-    <input type="number" id="userCount" min="1">
-    <br><br>
-    <button onclick="fetchReposts()">Fetch and Select Users</button>
+    <h1>微博抽奖工具</h1>
+
+    <div class="input-group">
+        <label for="weiboUrl">微博链接:</label>
+        <input type="text" id="weiboUrl" placeholder="请输入微博链接">
+    </div>
+
+    <div class="input-group">
+        <label for="userCount">抽取人数:</label>
+        <input type="number" id="userCount" placeholder="请输入需要抽取的人数" min="1">
+    </div>
+
+    <button id="fetchButton" type="button" onclick="fetchReposts()">抽取中奖用户</button>
+
     <div id="result"></div>
 
     <script type="text/javascript">
         const serverUrl = "{{ server_url }}";
+
         async function fetchReposts() {
             const weiboUrl = document.getElementById('weiboUrl').value;
             const userCount = document.getElementById('userCount').value;
 
             if (!weiboUrl || !userCount) {
-                alert("Please provide both Weibo URL and number of users to select.");
+                alert("请填写微博链接和抽取人数。");
                 return;
             }
 
@@ -35,16 +112,16 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    alert("Error: " + data.error);
+                    alert("错误: " + data.error);
                     return;
                 }
 
                 const userList = data.users;
                 const resultDiv = document.getElementById('result');
-                resultDiv.innerHTML = `<h3>Selected Users:</h3><ul>${userList.map(user => `<li>${user}</li>`).join('')}</ul>`;
+                resultDiv.innerHTML = `<h3>中奖用户:</h3><ul>${userList.map(user => `<li>${user}</li>`).join('')}</ul>`;
             } catch (error) {
-                console.error("Error fetching reposts:", error);
-                alert("Error fetching reposts. Check the console for details.");
+                console.error("获取转发数据时出错:", error);
+                alert("获取转发数据时出错，请检查控制台以了解详细信息。");
             }
         }
     </script>
