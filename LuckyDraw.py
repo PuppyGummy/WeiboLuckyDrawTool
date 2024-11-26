@@ -148,6 +148,8 @@ def fetch_reposts():
 
         # Extract Weibo ID from URL
         weibo_id = weibo_url.split('/')[-1]
+        # Remove any spaces
+        weibo_id = weibo_id.replace(' ', '')
         logger.info(f"Extracted Weibo ID: {weibo_id}")
 
         # 检查令牌状态
