@@ -157,9 +157,9 @@ def fetch_reposts():
         # if token_data and not is_token_expired(token_data):
         #     logger.info("Valid token found, setting in client")
         client.set_access_token(token_data['access_token'], 3600)
-        else:
-            logger.error("Token invalid or expired")
-            return jsonify({"error": "Token expired or not found. Please reauthorize."}), 401
+        # else:
+        #     logger.error("Token invalid or expired")
+        #     return jsonify({"error": "Token expired or not found. Please reauthorize."}), 401
 
         # 获取转发数据
         logger.info("Fetching repost timeline")
