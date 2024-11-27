@@ -206,6 +206,8 @@ class APIClient(object):
                 )
         return result
     def repost_timeline(self, weibo_id):
+        if self.access_token is None:
+            raise Exception("Access token is required to fetch reposts")
         all_reposts = []  # List to store all reposts
         page = 1
         count_per_page = 50  # Number of reposts per page
