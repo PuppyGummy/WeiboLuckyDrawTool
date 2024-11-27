@@ -34,15 +34,17 @@ def save_token(token_data):
 def load_token():
     """从环境变量加载令牌信息"""
     try:
-        token_str = os.environ.get('WEIBO_TOKEN')
-        if token_str:
-            token_data = json.loads(token_str)
-            logger.info("Token loaded from environment variable")
-            return token_data
-        logger.warning("No token found in environment variables")
+        with open('token_data.json', 'r') as f:
+            token_data = json.load(f)
+        logger.info("Token loaded from JSON file")
+        if 'expires' in token_data:
+            token_data['expires'] = float(token_data['expires'])
+        return token_data
+    except FileNotFoundError:
+        logger.warning("No token file found")
         return None
     except Exception as e:
-        logger.error(f"Error loading token from environment: {str(e)}")
+        logger.error(f"Error loading token from JSON file: {str(e)}")
         return None
 
 def is_token_expired(token_data):
