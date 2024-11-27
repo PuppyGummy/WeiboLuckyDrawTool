@@ -94,26 +94,51 @@ def _http_upload(url, authorization=None, **kw):
 
 #send an http request and expect to return a json object if no error.
 def _http_request(url, method, authorization, **kw):
-    params = None
-    boundary = None
-    if method == _HTTP_UPLOAD:
-        params, boundary = _encode_multipart(**kw)
-    else:
-        params = _encode_params(**kw)
-    http_url = '%s?%s' % (url, params) if method == _HTTP_GET else url
-    http_para = None if method == _HTTP_GET else params.encode(encoding='utf-8')
-    #print(http_para)
-    req = urllib.request.Request(http_url, data=http_para)
-    if authorization:
-        req.add_header('Authorization', 'OAuth2 %s' % authorization)
-    if boundary:
-        req.add_header('Content-Type', 'multipart/form-data; boundary=%s' % boundary)
-    resq = urllib.request.urlopen(req)
-    body = resq.read().decode("utf-8")
-    result = json.loads(body, object_hook=_obj_hook)
-    if 'error_code' in result:
-        print('error')
-    return result
+    try:
+        params = None
+        boundary = None
+        if method == _HTTP_UPLOAD:
+            params, boundary = _encode_multipart(**kw)
+        else:
+            params = _encode_params(**kw)
+
+        http_url = f'{url}?{params}' if method == _HTTP_GET else url
+        http_para = None if method == _HTTP_GET else params.encode(encoding='utf-8')
+
+        logging.debug(f"Request URL: {http_url}")
+        logging.debug(f"Request Params: {params}")
+
+        req = urllib.request.Request(http_url, data=http_para)
+        if authorization:
+            req.add_header('Authorization', f'OAuth2 {authorization}')
+        if boundary:
+            req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+
+        resq = urllib.request.urlopen(req)
+        body = resq.read().decode("utf-8")
+        result = json.loads(body, object_hook=_obj_hook)
+        
+        logging.debug(f"Response: {result}")
+        
+        if 'error_code' in result:
+            logging.error(f"Error in response: {result}")
+            raise Exception(f"Weibo API error {result['error_code']}: {result.get('error', 'Unknown error')}")
+
+        return result
+
+    except urllib.error.HTTPError as e:
+        logging.error(f"HTTPError: {e.code}, URL: {url}, Reason: {e.reason}")
+        raise
+    except urllib.error.URLError as e:
+        logging.error(f"URLError: {e.reason}, URL: {url}")
+        raise
+    except json.JSONDecodeError as e:
+        logging.error(f"JSONDecodeError: {e.msg}")
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error: {str(e)}", exc_info=True)
+        raise
+
 
 
 
