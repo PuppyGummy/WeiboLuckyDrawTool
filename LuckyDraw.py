@@ -50,7 +50,7 @@ def is_token_expired(token_data):
     if not token_data:
         return True
     
-    expiration_time = int(token_data.get('expires', 0))
+    expiration_time = float(token_data.get('expires', 0))
     current_time = time.time()
     is_expired = current_time > expiration_time
     
