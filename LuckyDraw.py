@@ -50,7 +50,7 @@ def is_token_expired(token_data):
     if not token_data:
         return True
     
-    expiration_time = float(token_data.get('expires', 0))
+    expiration_time = int(token_data.get('expires', 0))
     current_time = time.time()
     is_expired = current_time > expiration_time
     
@@ -72,9 +72,12 @@ def before_request():
 @app.route('/')
 def home():
     try:
-        auth_url = client.get_authorize_url()
-        logger.info(f"Generated auth URL: {auth_url}")
-        return redirect(auth_url)
+        if load_token() and not is_token_expired(load_token()):
+            return render_template('index.html', server_url = 'https://' + request.host)
+        else:
+            auth_url = client.get_authorize_url()
+            logger.info(f"Generated auth URL: {auth_url}")
+            return redirect(auth_url)
     except Exception as e:
         logger.error(f"Error in home route: {str(e)}", exc_info=True)
         return f"Error generating authorization URL: {str(e)}", 500
@@ -104,6 +107,7 @@ def callback():
         # 计算过期时间（将expires_in转换为整数）
         expires_in = int(result.expires_in)
         expiration_time = time.time() + expires_in
+        
         
         # 保存令牌数据
         token_data = {
@@ -154,12 +158,12 @@ def fetch_reposts():
 
         # 检查令牌状态
         token_data = load_token()
-        # if token_data and not is_token_expired(token_data):
-        #     logger.info("Valid token found, setting in client")
-        client.set_access_token(token_data['access_token'], 3600)
-        # else:
-        #     logger.error("Token invalid or expired")
-        #     return jsonify({"error": "Token expired or not found. Please reauthorize."}), 401
+        if token_data and not is_token_expired(token_data):
+            logger.info("Valid token found, setting in client")
+            client.set_access_token(token_data['access_token'], 3600)
+        else:
+            logger.error("Token invalid or expired")
+            return jsonify({"error": "Token expired or not found. Please reauthorize."}), 401
 
         # 获取转发数据
         logger.info("Fetching repost timeline")
