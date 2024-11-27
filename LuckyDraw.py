@@ -176,6 +176,9 @@ def fetch_reposts():
         # 获取转发数据
         logger.info("Fetching repost timeline")
         reposts = client.repost_timeline(weibo_id)
+        if 'error_code' in reposts:
+            logger.error(f"Error fetching reposts: {reposts['error']}")
+            return jsonify({"error": reposts['error']})
         logger.info(f"Received {len(reposts) if reposts else 0} reposts")
         
         users = [repost['user']['screen_name'] for repost in reposts]
