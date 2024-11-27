@@ -21,15 +21,17 @@ APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
 REDIRECT_URL = 'https://luckydrawtool.online/callback'
 
 def save_token(token_data):
-    """使用环境变量存储令牌信息"""
+    """使用环境变量和文件存储令牌信息"""
     try:
         # 将令牌数据转换为JSON字符串
         token_str = json.dumps(token_data)
-        # 在本地设置环境变量
-        os.environ['WEIBO_TOKEN'] = token_str
-        logger.info("Token saved to environment variable")
+        
+        # 同时保存到文件以备后用
+        with open('token_data.json', 'w') as f:
+            json.dump(token_data, f)
+        logger.info("Token saved to JSON file")
     except Exception as e:
-        logger.error(f"Error saving token to environment: {str(e)}")
+        logger.error(f"Error saving token: {str(e)}")
 
 def load_token():
     """从环境变量加载令牌信息"""
