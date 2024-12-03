@@ -100,20 +100,27 @@ def _http_request(url, method, authorization, **kw):
         params, boundary = _encode_multipart(**kw)
     else:
         params = _encode_params(**kw)
-    http_url = '%s?%s' % (url, params) if method == _HTTP_GET else url
+
+    http_url = f'{url}?{params}' if method == _HTTP_GET else url
     http_para = None if method == _HTTP_GET else params.encode(encoding='utf-8')
-    #print(http_para)
+
+    logging.debug(f"Request URL: {http_url}")
+    logging.debug(f"Request Params: {params}")
+
     req = urllib.request.Request(http_url, data=http_para)
     if authorization:
-        req.add_header('Authorization', 'OAuth2 %s' % authorization)
+        req.add_header('Authorization', f'OAuth2 {authorization}')
     if boundary:
-        req.add_header('Content-Type', 'multipart/form-data; boundary=%s' % boundary)
+        req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+
     resq = urllib.request.urlopen(req)
     body = resq.read().decode("utf-8")
     result = json.loads(body, object_hook=_obj_hook)
-    if 'error_code' in result:
-        print('error')
+    
+    logging.debug(f"Response: {result}")
+    
     return result
+
 
 
 
@@ -142,12 +149,12 @@ class APIClient(object):
         self.auth_url = 'https://%s/oauth2/' % domain
         self.api_url = 'https://%s/%s/' % (domain, version)
         self.access_token = None
-        self.expires = 0.0  #到期
+        self.expires = 0.0
         self.get = HttpObject(self, _HTTP_GET)
         self.post = HttpObject(self, _HTTP_POST)
         self.upload = HttpObject(self, _HTTP_UPLOAD)
 
-    #get authorize url得到授权url
+    #get authorize url
     def get_authorize_url(self):
         return "https://api.weibo.com/oauth2/authorize?response_type=code&client_id=%s&redirect_uri=%s"%(self.client_id, self.redirect_uri)
 
@@ -181,6 +188,8 @@ class APIClient(object):
                 )
         return result
     def repost_timeline(self, weibo_id):
+        if self.access_token is None:
+            raise Exception("Access token is required to fetch reposts")
         all_reposts = []  # List to store all reposts
         page = 1
         count_per_page = 50  # Number of reposts per page
