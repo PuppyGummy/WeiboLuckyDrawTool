@@ -16,7 +16,7 @@ app = Flask(__name__)
 #     }
 # })
 
-# 设置日志记录
+# logging configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -29,20 +29,20 @@ APP_SECRET = '61b979b2276797f389f5479ea18c1a61'
 REDIRECT_URL = 'https://puppygummy.github.io/WeiboLuckyDrawTool'
 
 def save_token(token_data):
-    """使用环境变量存储令牌信息"""
+    """Use the token data to save the token to a JSON file"""
     try:
-        # 确保token_data中的expires是数值类型
-        if isinstance(token_data.get('expires'), (int, float)):
-            token_str = json.dumps(token_data)
-            os.environ['WEIBO_TOKEN'] = token_str
-            logger.info(f"Token saved to environment variable: {token_data}")
-        else:
-            logger.error("Invalid token data format: 'expires' must be a number")
+        # Convert the token data to a JSON string
+        token_str = json.dumps(token_data)
+        
+        # Save the token data to a file
+        with open('token_data.json', 'w') as f:
+            json.dump(token_data, f)
+        logger.info("Token saved to JSON file")
     except Exception as e:
         logger.error(f"Error saving token to environment: {str(e)}")
 
 def load_token():
-    """从环境变量加载令牌信息"""
+    """Load the token data from a JSON file"""
     try:
         token_str = os.environ.get('WEIBO_TOKEN')
         if token_str:
@@ -59,7 +59,7 @@ def load_token():
         return None
 
 def is_token_expired(token_data):
-    """检查令牌是否过期"""
+    """Check if the token has expired"""
     if not token_data:
         return True
     
@@ -104,6 +104,7 @@ def process_auth_code():
         if not code:
             return jsonify({"error": "No authorization code received"}), 400
 
+        # Request access token
         try:
             result = client.request_access_token(code)
             client.set_access_token(result.access_token, result.expires_in)
@@ -111,9 +112,12 @@ def process_auth_code():
             logger.error(f"Error requesting access token: {str(token_error)}", exc_info=True)
             return jsonify({"error": "Failed to request access token"}), 500
 
+        # Calculate expiration time
         expires_in = int(result.expires_in)
         expiration_time = time.time() + expires_in
-
+        
+        
+        # Save token data
         token_data = {
             "access_token": result.access_token,
             "expires": expiration_time
@@ -124,8 +128,23 @@ def process_auth_code():
         logger.info(f"Access token set: {result.access_token}, expires in {expires_in} seconds")
         
         logger.info(f"Token data prepared: {token_data}")
-        return jsonify(token_data)
+        
+        # Set access token in client
+        try:
+            client.set_access_token(result.access_token, expires_in)
+            logger.info("Access token set in client successfully")
+        except Exception as set_token_error:
+            logger.error(f"Error setting access token: {str(set_token_error)}")
+            return f"Error setting access token: {str(set_token_error)}", 500
 
+        # Save token data to file
+        try:
+            save_token(token_data)
+        except Exception as save_error:
+            logger.error(f"Error saving token: {str(save_error)}")
+
+        return render_template('index.html', server_url = 'https://' + request.host)
+    
     except Exception as e:
         logger.error(f"Error in process_auth_code: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
@@ -149,18 +168,29 @@ def fetch_reposts():
         weibo_id = weibo_url.split('/')[-1]
         logger.info(f"Extracted Weibo ID: {weibo_id}")
 
-        # 检查令牌状态
-        # token_data = load_token()
-        # if not token_data or is_token_expired(token_data):
-        #     return jsonify({"error": "Access token is missing or expired"}), 401
-        
-        # client.set_access_token(token_data['access_token'], token_data['expires'])
-        
-        # 调用微博API获取转发列表
+        # Check for token
+        token_data = load_token()
+        if token_data:
+            if not is_token_expired(token_data):
+                logger.info("Valid token found, setting in client")
+                client.set_access_token(token_data['access_token'], int(token_data['expires'] - time.time()))
+            else:
+                logger.error("Token expired")
+                return jsonify({"error": "Token expired."}), 401
+        else:
+            logger.error("Token not found")
+            return jsonify({"error": "Token not found."}), 401
+
+        # Fetch reposts
+        logger.info("Fetching repost timeline")
         reposts = client.repost_timeline(weibo_id)
         users = [repost['user']['screen_name'] for repost in reposts]
-        
-        # 随机选择用户
+
+        if len(users) == 0:
+            logger.warning("No users found in reposts")
+            return jsonify({"error": "No users found."})
+
+        # Randomly select users
         selected_users = random.sample(users, min(count, len(users)))
         logger.info(f"Selected {len(selected_users)} users randomly")
         
